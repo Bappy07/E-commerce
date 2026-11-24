@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from '@better-auth/mongo-adapter';
-import { env, corsOrigins } from './env.js';
+import { env, trustedOrigins } from './env.js';
 import { mongoClient, mongoDb } from './db.js';
 
 const roleField = {
@@ -12,7 +12,7 @@ const roleField = {
 export const auth = betterAuth({
   appName: 'MARKETLY',
   baseURL: env.authUrl,
-  secret: env.authSecret || 'marketly-development-secret-change-me',
+  secret: env.authSecret || (env.isProduction ? undefined : 'marketly-development-secret-change-me'),
   // Match the plural collection names used by the Mongoose models (users, sessions, accounts, verifications).
   database: mongodbAdapter(mongoDb, { client: mongoClient, transaction: true, usePlural: true }),
   emailAndPassword: {
@@ -31,7 +31,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
-  trustedOrigins: corsOrigins,
+  trustedOrigins,
   advanced: {
     defaultCookieAttributes: {
       sameSite: env.isProduction ? 'none' : 'lax',

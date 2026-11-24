@@ -2,7 +2,18 @@ import mongoose from 'mongoose';
 import { MongoClient } from 'mongodb';
 import { env } from './env.js';
 
-export const mongoClient = new MongoClient(env.mongoUri || 'mongodb://127.0.0.1:27017');
+const clientOptions = {
+  appName: env.dbName,
+  maxPoolSize: env.isProduction ? 20 : 10,
+  minPoolSize: 0,
+  serverSelectionTimeoutMS: env.isProduction ? 15000 : 10000,
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  retryWrites: true,
+  retryReads: true,
+};
+
+export const mongoClient = new MongoClient(env.mongoUri || 'mongodb://127.0.0.1:27017', clientOptions);
 export const mongoDb = mongoClient.db(env.dbName);
 
 let connected = false;
@@ -12,7 +23,7 @@ export async function connectDB() {
   if (!env.mongoUri) throw new Error('MONGODB_URI is missing. Copy server/.env.example to server/.env and add your Atlas URI.');
 
   await Promise.all([
-    mongoose.connect(env.mongoUri, { dbName: env.dbName, serverSelectionTimeoutMS: 10000 }),
+    mongoose.connect(env.mongoUri, { dbName: env.dbName, ...clientOptions }),
     mongoClient.connect(),
   ]);
 

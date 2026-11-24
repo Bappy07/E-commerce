@@ -13,13 +13,20 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(helmet());
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // health checks and server-to-server calls
+  if (corsOrigins.includes(origin)) return true;
+  return env.allowVercelPreviews && /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+};
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || corsOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     callback(new Error('Origin not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  optionsSuccessStatus: 204,
 }));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 400, standardHeaders: 'draft-7', legacyHeaders: false });

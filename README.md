@@ -21,6 +21,7 @@ MARKETLY is a full-stack, multi-vendor marketplace with three distinct roles: **
 - [Database model](#database-model)
 - [Testing](#testing)
 - [Deployment notes](#deployment-notes)
+- [Render deployment](#render-deployment)
 - [Verification status](#verification-status)
 
 ---
@@ -417,6 +418,85 @@ Manual checks still recommended:
 
 ---
 
+## Render deployment
+
+Deploy only the **Express backend** to Render; the Next.js frontend is deployed separately on Vercel.
+
+The server is production-ready: it binds to `0.0.0.0`, listens on `process.env.PORT` (fallback `5000`), validates required environment variables at startup, uses an explicit CORS allow-list for the Vercel origin, and exposes `/api/health` for Render health checks.
+
+### Build and start commands
+
+Create a **Web Service** on Render pointing at this repository. Two valid configurations:
+
+**Option A — Root Directory is the repository root (recommended):**
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | leave as repo root (`.`) |
+| Runtime | Node |
+| Build Command | `npm install && npm install --prefix server` |
+| Start Command | `npm --prefix server start` |
+
+**Option B — Root Directory is `server`:**
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `server` |
+| Runtime | Node |
+| Build Command | `npm install` |
+| Start Command | `npm start` |
+
+Do **not** use `npm run dev` or a process manager wrapper as the start command. The `start` script runs `node src/server.js` directly.
+
+### Production environment variables (set in the Render dashboard)
+
+Never commit a `.env` file. Add these as secret environment variables on the Render service.
+
+| Variable | Example / value | Required | Notes |
+| --- | --- | --- | --- |
+| `NODE_ENV` | `production` | Yes | Enables strict startup validation and production Mongo pool settings. |
+| `HOST` | `0.0.0.0` | Recommended | Default is already `0.0.0.0`. |
+| `PORT` | set by Render | Auto | Render injects this; the app falls back to `5000` locally. |
+| `MONGODB_URI` | Atlas SRV connection string | Yes | Use a least-privilege Atlas user; allowlist `0.0.0.0/0` only if Render's egress IPs are not pinned, otherwise add Render's static outbound IPs. |
+| `DB_NAME` | `marketly` | Recommended | Atlas database name. |
+| `BETTER_AUTH_SECRET` | unique random string, 32+ chars | Yes | Generate with `openssl rand -base64 32`; never reuse the demo value. |
+| `BETTER_AUTH_URL` | `https://<your-api>.onrender.com` | Yes | Exact public Render URL of this API. |
+| `CLIENT_URL` | `https://<your-app>.vercel.app` | Yes | Exact public Vercel frontend origin. |
+| `CORS_ORIGIN` | `https://<your-app>.vercel.app` | Yes | Must match the deployed Vercel origin exactly (no trailing slash). |
+| `ALLOW_VERCEL_PREVIEWS` | `false` | Optional | Set `true` only if you need `*.vercel.app` preview deployments to call the API. |
+| `CLOUDINARY_CLOUD_NAME` | from Cloudinary | Optional | Required for product image upload. |
+| `CLOUDINARY_API_KEY` | from Cloudinary | Optional | Required for product image upload. |
+| `CLOUDINARY_API_SECRET` | from Cloudinary | Optional | Required for product image upload. |
+| `SSLCOMMERZ_STORE_ID` | from SSLCommerz | Optional | Required for online payments. |
+| `SSLCOMMERZ_STORE_PASSWORD` | from SSLCommerz | Optional | Required for online payments. |
+| `SSLCOMMERZ_SANDBOX` | `false` in production | Optional | Defaults to `true`; set to `false` for live payments. |
+| `COMMISSION_PERCENT` | `10` | Optional | Server-side marketplace commission. |
+| `FLAT_SHIPPING_FEE` | `60` | Optional | Flat shipping fee. |
+| `FREE_SHIPPING_OVER` | `5000` | Optional | Free-shipping threshold. |
+
+### Verify before and after deploying
+
+Locally (uses the repository `.env` for the Atlas URI and auth secret, plus placeholder public URLs):
+
+```bash
+npm run verify:production
+```
+
+This checks: production env validation, Atlas connection, `0.0.0.0` bind, `process.env.PORT`, `/api/health`, Vercel origin allowed, credentials allowed, and unknown origins rejected.
+
+After Render finishes deploying, verify the real deployment:
+
+```bash
+curl https://<your-api>.onrender.com/api/health
+curl -I -X OPTIONS https://<your-api>.onrender.com/api/health \
+  -H "Origin: https://<your-app>.vercel.app" \
+  -H "Access-Control-Request-Method: GET"
+```
+
+Confirm the health response shows `"db": "connected"` and the preflight returns `access-control-allow-origin: https://<your-app>.vercel.app`. Then sign in from the deployed frontend to confirm cookies/sessions work across the two domains. A successful Render deployment is only claimed after these live checks pass.
+
+---
+
 ## Verification status
 
 Completed:
@@ -428,11 +508,13 @@ Completed:
 - API smoke test passed (11/11 checks).
 - Full live workflow test passed (28/28 checks), including cart, checkout, stock, commission, seller isolation, admin operations, seller approval, product CRUD, and cancellation.
 - Catalog verified at 66 products; the 54 local SVG placeholders serve correctly through the Next.js image optimizer.
+- Local production configuration verified (`npm run verify:production`): Atlas connection, `0.0.0.0` bind, `process.env.PORT`, `/api/health`, Vercel origin CORS allow/reject.
 
 Pending live verification (requires credentials you have not supplied):
 
 - Cloudinary image upload.
 - SSLCommerz sandbox init and callback/IPN flow.
 - Replacing the local SVG placeholders with hosted AI-generated product photography.
+- Live Render deployment and its `/api/health`, CORS preflight, and cross-domain session checks.
 
 No real MongoDB, Cloudinary, or SSLCommerz credentials are included in this repository.

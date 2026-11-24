@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
+import { env } from '../config/env.js';
 import catalog from './catalog.js';
 import users from './users.js';
 import cart from './cart.js';
@@ -10,7 +12,16 @@ import reviews from './reviews.js';
 import upload from './upload.js';
 
 const router = Router();
-router.get('/health', (_req, res) => res.json({ success: true, data: { status: 'ok', app: 'MARKETLY API' } }));
+router.get('/health', (_req, res) => res.json({
+  success: true,
+  data: {
+    status: 'ok',
+    app: 'MARKETLY API',
+    env: env.nodeEnv,
+    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    uptime: Math.round(process.uptime()),
+  },
+}));
 router.use('/catalog', catalog);
 router.use('/users', users);
 router.use('/cart', cart);

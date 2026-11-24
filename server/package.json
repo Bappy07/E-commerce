@@ -13,6 +13,7 @@
     "placeholders": "node src/scripts/generate-placeholders.js",
     "smoke": "node src/scripts/smoke.js",
     "workflow": "node src/scripts/workflow.js",
+    "verify:production": "node src/scripts/verify-production.js",
     "test": "node --test"
   },
   "dependencies": {
