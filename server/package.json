@@ -9,6 +9,8 @@
     "start": "node src/server.js",
     "build": "node --check src/server.js",
     "seed": "node src/scripts/seed.js",
+    "seed:products": "node src/scripts/seed-extra-products.js",
+    "placeholders": "node src/scripts/generate-placeholders.js",
     "smoke": "node src/scripts/smoke.js",
     "workflow": "node src/scripts/workflow.js",
     "test": "node --test"

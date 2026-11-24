@@ -8,6 +8,8 @@
     "dev": "concurrently -n api,web -c orange,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix server run build && npm --prefix client run build",
     "seed": "npm --prefix server run seed",
+    "seed:products": "npm --prefix server run seed:products",
+    "placeholders": "npm --prefix server run placeholders",
     "smoke": "npm --prefix server run smoke",
     "workflow": "npm --prefix server run workflow",
     "test": "npm --prefix server test",

@@ -31,6 +31,7 @@ MARKETLY is a full-stack, multi-vendor marketplace with three distinct roles: **
 
 - Responsive home page with trending products, categories, and featured stores.
 - Product browsing, filtering, sorting, search, and detailed product pages with related items.
+- 66 seeded products across six categories, with local SVG placeholders ready to be swapped for hosted photography.
 - Category and store pages.
 - Cart with server-calculated prices, shipping, and totals.
 - Wishlist, addresses, reviews, notifications, and account profile.
@@ -232,7 +233,9 @@ Run from the repository root:
 | `npm run install:all` | Install root, server, and client dependencies |
 | `npm run dev` | Start API and web app with hot reload |
 | `npm run build` | Syntax-check the server and build the Next.js client |
-| `npm run seed` | Seed demo data into the configured MongoDB database |
+| `npm run seed` | Seed demo data and all 66 products into MongoDB |
+| `npm run seed:products` | Upsert only the 54 catalog additions |
+| `npm run placeholders` | Regenerate the 54 local SVG product images |
 | `npm run smoke` | Run the live API smoke test |
 | `npm run workflow` | Run the full live buyer/seller/admin workflow test |
 | `npm test` | Run server unit tests |
@@ -424,10 +427,12 @@ Completed:
 - MongoDB Atlas connection and demo seeding passed.
 - API smoke test passed (11/11 checks).
 - Full live workflow test passed (28/28 checks), including cart, checkout, stock, commission, seller isolation, admin operations, seller approval, product CRUD, and cancellation.
+- Catalog verified at 66 products; the 54 local SVG placeholders serve correctly through the Next.js image optimizer.
 
 Pending live verification (requires credentials you have not supplied):
 
 - Cloudinary image upload.
 - SSLCommerz sandbox init and callback/IPN flow.
+- Replacing the local SVG placeholders with hosted AI-generated product photography.
 
 No real MongoDB, Cloudinary, or SSLCommerz credentials are included in this repository.

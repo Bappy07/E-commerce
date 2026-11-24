@@ -9,6 +9,7 @@ import { Wishlist } from '../models/wishlist.js';
 import { Setting } from '../models/setting.js';
 import { env } from '../config/env.js';
 import { slugify, uniqueSlug } from '../utils/common.js';
+import { seedExtraProducts } from './seed-extra-products.js';
 
 const img = (id) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=85`;
 
@@ -104,13 +105,14 @@ async function main() {
   }, { upsert: true });
   await Wishlist.findOneAndUpdate({ userId: buyer._id }, { $setOnInsert: { productIds: [] } }, { upsert: true });
   await uniqueSlug('unused', Category);
+  const extraCount = await seedExtraProducts();
 
   console.log('\nSeed complete.');
   console.log(`Admin:  ${admin.email} / ${process.env.SEED_ADMIN_PASSWORD || 'Admin@12345'}`);
   console.log(`Seller: ${seller.email} / ${process.env.SEED_SELLER_PASSWORD || 'Seller@12345'}`);
   console.log(`Buyer:  ${buyer.email} / ${process.env.SEED_BUYER_PASSWORD || 'Buyer@12345'}`);
   console.log(`Stores: ${stores.map((store) => store.name).join(', ')}`);
-  console.log(`Products: ${products.length}\n`);
+  console.log(`Products: ${products.length + extraCount} (${products.length} curated + ${extraCount} catalog additions)\n`);
   await disconnectDB();
 }
 

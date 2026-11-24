@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Cork Yoga Block">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f4f5f"/>
+      <stop offset="1" stop-color="#6fa8bf"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <circle cx="400" cy="360" r="230" fill="rgba(255,255,255,.10)"/>
+  <circle cx="360" cy="400" r="82" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="20"/><circle cx="440" cy="400" r="82" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="20"/>
+  <text x="56" y="80" font-family="Arial, sans-serif" font-size="22" letter-spacing="4" fill="rgba(255,255,255,.85)">MARKETLY / SPORTS</text>
+  <text x="56" y="648" font-family="Arial, sans-serif" font-size="40" font-weight="600" fill="#ffffff">Cork Yoga Block</text>
+  <text x="56" y="760" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,.75)">SP-104</text>
+  <text x="744" y="760" text-anchor="end" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,.75)">40</text>
+</svg>
