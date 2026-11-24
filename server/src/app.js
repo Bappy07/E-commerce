@@ -4,9 +4,13 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './config/auth.js';
-import { corsOrigins, env } from './config/env.js';
+import { connectDB } from './config/db.js';
+import { corsOrigins, env, validateProductionEnv } from './config/env.js';
 import api from './routes/index.js';
 import { notFound, errorHandler } from './middleware/error.js';
+
+// The serverless entrypoint imports this app without running server.js.
+if (env.isProduction) validateProductionEnv();
 
 const app = express();
 app.set('trust proxy', 1);
@@ -33,6 +37,19 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 400, standardHea
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false, skipSuccessfulRequests: true });
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
+
+// server.js connects before listening; Vercel Functions need a per-cold-start connection.
+let dbPromise;
+app.use('/api', async (_req, _res, next) => {
+  try {
+    if (!dbPromise) dbPromise = connectDB();
+    await dbPromise;
+    next();
+  } catch (error) {
+    dbPromise = null;
+    next(error);
+  }
+});
 
 // Better Auth must receive the raw request stream, before express.json().
 app.all('/api/auth/*splat', toNodeHandler(auth));

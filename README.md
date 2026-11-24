@@ -558,6 +558,37 @@ Confirm the health response shows `"db": "connected"` and the preflight returns 
 
 ---
 
+## Vercel full-stack deployment
+
+The root `vercel.json` uses **Vercel Services** to host both apps in one project on one domain:
+
+- `marketly-web` — the Next.js app in `client/`
+- `marketly-api` — the Express app in `server/`, entrypoint `src/app.js`
+
+`/api/*` requests are routed to the backend service; every other path is routed to the frontend. The backend connects to MongoDB on the first request, so no long-running port listener is needed.
+
+Set these in the Vercel project's Production environment (never in a committed file):
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | Your Atlas SRV connection string |
+| `DB_NAME` | `marketly` |
+| `BETTER_AUTH_SECRET` | A unique 32+ character random secret |
+| `BETTER_AUTH_URL` | `https://<your-vercel-domain>` |
+| `CLIENT_URL` | `https://<your-vercel-domain>` |
+| `CORS_ORIGIN` | `https://<your-vercel-domain>` |
+| `ALLOW_VERCEL_PREVIEWS` | `false` |
+| `NEXT_PUBLIC_API_URL` | `https://<your-vercel-domain>/api` |
+| `NEXT_PUBLIC_APP_URL` | `https://<your-vercel-domain>` |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional; only for image uploads |
+| `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD`, `SSLCOMMERZ_SANDBOX` | Optional; simulated checkout needs none |
+| `COMMISSION_PERCENT`, `FLAT_SHIPPING_FEE`, `FREE_SHIPPING_OVER` | Marketplace settings |
+
+Do **not** add `SEED_*` demo account variables in production. After deploying, verify `/api/health`, a browser sign-in, and one simulated checkout before claiming the deployment is live.
+
+---
+
 ## Verification status
 
 Completed locally:
