@@ -49,8 +49,13 @@ export const orderService = {
 };
 
 export const paymentService = {
-  init: (orderId) => unwrap(api.post('/payments/sslcommerz/init', { orderId })),
+  methods: () => unwrap(api.get('/payments/methods')),
+  history: (params) => unwrapPage(api.get('/payments/history', { params })),
   get: (orderId) => unwrap(api.get(`/payments/${orderId}`)),
+  mockSession: (token) => unwrap(api.get('/payments/mock/session', { params: { token } })),
+  initMock: (body) => unwrap(api.post('/payments/mock/init', body)),
+  verifyMock: (body) => unwrap(api.post('/payments/mock/verify', body)),
+  initSsl: (orderId) => unwrap(api.post('/payments/sslcommerz/init', { orderId })),
 };
 
 export const reviewService = {
@@ -72,6 +77,8 @@ export const sellerService = {
   updateOrderItem: (orderId, itemId, body) => unwrap(api.patch(`/orders/${orderId}/items/${itemId}`, body)),
   earnings: (params) => unwrap(api.get('/sellers/me/earnings', { params })),
   commissions: () => unwrap(api.get('/sellers/me/commissions')),
+  finance: () => unwrap(api.get('/sellers/me/finance')),
+  payouts: (params) => unwrapPage(api.get('/sellers/me/payouts', { params })),
 };
 
 export const adminService = {
@@ -91,8 +98,13 @@ export const adminService = {
   deleteProduct: (id) => unwrap(api.delete(`/admin/products/${id}`)),
   orders: (params) => unwrapPage(api.get('/admin/orders', { params })),
   updateOrder: (id, body) => unwrap(api.patch(`/admin/orders/${id}`, body)),
-  payments: () => unwrap(api.get('/admin/payments')),
+  payments: (params) => unwrapPage(api.get('/admin/payments', { params })),
   refund: (id, body) => unwrap(api.post(`/admin/payments/${id}/refund`, body)),
+  finance: () => unwrap(api.get('/admin/finance')),
+  payouts: (params) => unwrapPage(api.get('/admin/payouts', { params })),
+  createPayout: (body) => unwrap(api.post('/admin/payouts', body)),
+  updatePayout: (id, body) => unwrap(api.patch(`/admin/payouts/${id}`, body)),
+  updateDelivery: (id, body) => unwrap(api.patch(`/admin/orders/${id}/delivery`, body)),
   commissions: () => unwrap(api.get('/admin/commissions')),
   analytics: (params) => unwrap(api.get('/admin/analytics', { params })),
   settings: () => unwrap(api.get('/admin/settings')),

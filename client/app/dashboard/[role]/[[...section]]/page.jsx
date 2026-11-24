@@ -7,16 +7,16 @@ import { DashboardShell } from '@/components/dashboard/shell';
 import { EmptyState } from '@/components/store/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  BuyerOverview, BuyerOrders, BuyerOrderDetail, BuyerWishlist, BuyerAddresses,
+  BuyerOverview, BuyerOrders, BuyerOrderDetail, BuyerPayments, BuyerWishlist, BuyerAddresses,
   BuyerReviews, BuyerProfile, BuyerSellApplication, BuyerSettings,
 } from '@/features/dashboard/buyer-panels';
 import {
   SellerOverview, SellerStore, SellerProducts, ProductForm, SellerInventory,
-  SellerOrders, SellerEarnings, SellerCommissions, SellerSettings,
+  SellerOrders, SellerEarnings, SellerCommissions, SellerPayouts, SellerSettings,
 } from '@/features/dashboard/seller-panels';
 import {
   AdminOverview, AdminUsers, AdminSellers, AdminApplications, AdminProducts, AdminCategories,
-  AdminOrders, AdminPayments, AdminCommissions, AdminAnalytics, AdminSettings,
+  AdminOrders, AdminPayments, AdminFinance, AdminPayouts, AdminCommissions, AdminAnalytics, AdminSettings,
 } from '@/features/dashboard/admin-panels';
 
 export default function DashboardPage() {
@@ -38,18 +38,19 @@ export default function DashboardPage() {
   const panels = {
     buyer: {
       overview: <BuyerOverview />, orders: id ? <BuyerOrderDetail id={id} /> : <BuyerOrders />,
-      wishlist: <BuyerWishlist />, addresses: <BuyerAddresses />, reviews: <BuyerReviews />,
+      payments: <BuyerPayments />, wishlist: <BuyerWishlist />, addresses: <BuyerAddresses />, reviews: <BuyerReviews />,
       sell: <BuyerSellApplication />, profile: <BuyerProfile />, settings: <BuyerSettings />,
     },
     seller: {
       overview: <SellerOverview />, store: <SellerStore />, products: id ? <ProductForm productId={id} /> : <SellerProducts />,
       'add-product': <ProductForm />, inventory: <SellerInventory />, orders: <SellerOrders />,
-      earnings: <SellerEarnings />, commissions: <SellerCommissions />, settings: <SellerSettings />,
+      earnings: <SellerEarnings />, commissions: <SellerCommissions />, payouts: <SellerPayouts />, settings: <SellerSettings />,
     },
     admin: {
       overview: <AdminOverview />, users: <AdminUsers />, sellers: <AdminSellers />, applications: <AdminApplications />,
       products: <AdminProducts />, categories: <AdminCategories />, orders: <AdminOrders />, payments: <AdminPayments />,
-      commissions: <AdminCommissions />, analytics: <AdminAnalytics />, settings: <AdminSettings />,
+      finance: <AdminFinance />, payouts: <AdminPayouts />, commissions: <AdminCommissions />,
+      analytics: <AdminAnalytics />, settings: <AdminSettings />,
     },
   };
 

@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import * as sellers from '../controllers/sellers.js';
 import { requireActiveSeller } from '../middleware/auth.js';
-import { validate } from '../middleware/validate.js';
-import { inventorySchema, productSchema, storeSchema } from '../validators.js';
 
 const router = Router();
 router.use(requireActiveSeller);
 router.get('/me', sellers.getMyStore);
-router.patch('/me', validate(storeSchema), sellers.updateMyStore);
+router.patch('/me', sellers.updateMyStore);
 router.get('/me/products', sellers.listMyProducts);
-router.post('/me/products', validate(productSchema), sellers.createProduct);
+router.post('/me/products', sellers.createProduct);
 router.get('/me/products/:id', sellers.getMyProduct);
-router.put('/me/products/:id', validate(productSchema), sellers.updateProduct);
+router.put('/me/products/:id', sellers.updateProduct);
 router.delete('/me/products/:id', sellers.deleteProduct);
-router.patch('/me/inventory/:id', validate(inventorySchema), sellers.updateInventory);
+router.patch('/me/inventory/:id', sellers.updateInventory);
 router.get('/me/orders', sellers.listSellerOrders);
 router.get('/me/earnings', sellers.earnings);
 router.get('/me/commissions', sellers.commissions);
+router.get('/me/finance', sellers.finance);
+router.get('/me/payouts', sellers.listPayouts);
 export default router;

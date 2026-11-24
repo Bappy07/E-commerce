@@ -10,6 +10,7 @@ import { commissionFor, getSettings, notify } from '../services/marketplace.js';
 import { runInTransaction } from '../config/db.js';
 import { orderView } from '../utils/serialize.js';
 import { isObjectId } from '../services/marketplace.js';
+import { buildPaymentDoc } from '../services/payments.js';
 
 export const createOrder = asyncHandler(async (req, res) => {
   const { addressId, paymentMethod, note } = req.body;
@@ -52,7 +53,8 @@ export const createOrder = asyncHandler(async (req, res) => {
       orderNumber: orderNumber(), buyerId: req.user.id, items,
       address: { name: address.name, phone: address.phone, line1: address.line1, line2: address.line2, city: address.city, district: address.district, postalCode: address.postalCode, country: address.country },
       note: escapeText(note || ''), subtotal, shipping, total, paymentMethod,
-      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
+      // Every order starts unpaid. COD only becomes paid when cash collection is confirmed.
+      paymentStatus: 'pending',
       status: 'pending',
       commissionTotal: round2(items.reduce((sum, item) => sum + item.commission, 0)),
       sellerEarningTotal: round2(items.reduce((sum, item) => sum + item.sellerEarning, 0)),
@@ -75,7 +77,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       if (!updated.modifiedCount) throw new ApiError(409, `Not enough stock for ${item.title}`);
     }
 
-    await Payment.create([{ orderId: order[0]._id, buyerId: req.user.id, gateway: paymentMethod === 'cod' ? 'cod' : 'sslcommerz', amount: total, status: 'pending' }], { session });
+    await Payment.create([buildPaymentDoc(order[0], paymentMethod)], { session });
     await Cart.deleteOne({ userId: req.user.id }, { session });
 
     const sellerIds = [...new Set(items.map((item) => String(item.sellerId)))];
@@ -137,8 +139,13 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     order.status = 'cancelled';
     order.items.forEach((item) => { item.sellerStatus = 'cancelled'; });
     order.timeline.push({ label: 'Cancelled by buyer', at: new Date() });
+    if (order.paymentStatus !== 'paid') order.paymentStatus = 'cancelled';
     await order.save({ session });
-    await Payment.updateOne({ orderId: order._id, status: 'pending' }, { $set: { status: 'cancelled' } }, { session });
+    await Payment.updateMany(
+      { orderId: order._id, status: 'pending' },
+      { $set: { status: 'cancelled' }, $push: { timeline: { label: 'Payment cancelled with order', at: new Date() } } },
+      { session },
+    );
   });
   ok(res, orderView(order), 'Order cancelled');
 });

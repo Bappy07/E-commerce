@@ -12,21 +12,22 @@ import { initials } from '@/lib/format';
 
 export const NAV = {
   buyer: [
-    ['overview', 'Overview'], ['orders', 'My orders'], ['wishlist', 'Wishlist'], ['addresses', 'Addresses'],
+    ['overview', 'Overview'], ['orders', 'My orders'], ['payments', 'Payments'], ['wishlist', 'Wishlist'], ['addresses', 'Addresses'],
     ['reviews', 'Reviews'], ['sell', 'Become a seller'], ['profile', 'Profile'], ['settings', 'Settings'],
   ],
   seller: [
     ['overview', 'Overview'], ['store', 'My store'], ['products', 'Products'], ['add-product', 'Add product'],
-    ['inventory', 'Inventory'], ['orders', 'Orders'], ['earnings', 'Earnings'], ['commissions', 'Commissions'], ['settings', 'Settings'],
+    ['inventory', 'Inventory'], ['orders', 'Orders'], ['earnings', 'Earnings'], ['commissions', 'Commissions'],
+    ['payouts', 'Payouts'], ['settings', 'Settings'],
   ],
   admin: [
     ['overview', 'Overview'], ['users', 'Users'], ['sellers', 'Sellers'], ['applications', 'Seller applications'],
     ['products', 'Products'], ['categories', 'Categories'], ['orders', 'Orders'], ['payments', 'Payments'],
-    ['commissions', 'Commissions'], ['analytics', 'Analytics'], ['settings', 'Settings'],
+    ['finance', 'Finance'], ['payouts', 'Payouts'], ['commissions', 'Commissions'], ['analytics', 'Analytics'], ['settings', 'Settings'],
   ],
 };
 
-const TITLES = { overview: 'Overview', orders: 'Orders', wishlist: 'Wishlist', addresses: 'Addresses', reviews: 'Reviews', sell: 'Become a seller', profile: 'Profile', settings: 'Settings', store: 'My store', products: 'Products', 'add-product': 'Add product', inventory: 'Inventory', earnings: 'Earnings', commissions: 'Commissions', users: 'Users', sellers: 'Sellers', applications: 'Seller applications', categories: 'Categories', payments: 'Payments', analytics: 'Analytics' };
+const TITLES = { overview: 'Overview', orders: 'Orders', payments: 'Payments', wishlist: 'Wishlist', addresses: 'Addresses', reviews: 'Reviews', sell: 'Become a seller', profile: 'Profile', settings: 'Settings', store: 'My store', products: 'Products', 'add-product': 'Add product', inventory: 'Inventory', earnings: 'Earnings', commissions: 'Commissions', payouts: 'Payouts', finance: 'Finance', users: 'Users', sellers: 'Sellers', applications: 'Seller applications', categories: 'Categories', analytics: 'Analytics' };
 
 export function DashboardShell({ role, section, children }) {
   const pathname = usePathname();

@@ -38,3 +38,18 @@ export const orderView = (order) => {
   const o = obj(order);
   return { ...o, id: String(o._id) };
 };
+
+export const paymentView = (payment) => {
+  const p = obj(payment);
+  return {
+    ...p,
+    id: String(p._id),
+    amount: Number(p.amount || 0),
+    simulated: p.mode === 'simulated',
+    transactionId: p.transactionId || null,
+    orderId: p.orderId && p.orderId.orderNumber
+      ? { id: String(p.orderId._id), orderNumber: p.orderId.orderNumber }
+      : p.orderId ? String(p.orderId) : null,
+    gatewayResponse: undefined,
+  };
+};

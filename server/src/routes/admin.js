@@ -4,7 +4,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import {
   adminOrderSchema, adminProductSchema, adminSellerSchema, adminUserSchema, applicationDecisionSchema,
-  categorySchema, refundSchema, settingsSchema,
+  categorySchema, deliverySchema, payoutSchema, payoutStatusSchema, refundSchema, settingsSchema,
 } from '../validators.js';
 
 const router = Router();
@@ -25,8 +25,13 @@ router.patch('/products/:id', validate(adminProductSchema), admin.updateProduct)
 router.delete('/products/:id', admin.deleteProduct);
 router.get('/orders', admin.listOrders);
 router.patch('/orders/:id', validate(adminOrderSchema), admin.updateOrder);
+router.patch('/orders/:id/delivery', validate(deliverySchema), admin.updateDelivery);
 router.get('/payments', admin.listPayments);
 router.post('/payments/:id/refund', validate(refundSchema), admin.refundPayment);
+router.get('/finance', admin.finance);
+router.get('/payouts', admin.listPayouts);
+router.post('/payouts', validate(payoutSchema), admin.createPayout);
+router.patch('/payouts/:id', validate(payoutStatusSchema), admin.updatePayout);
 router.get('/commissions', admin.commissions);
 router.get('/analytics', admin.analytics);
 router.get('/settings', admin.getSettings);

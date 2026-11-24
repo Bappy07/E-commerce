@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Activity, BadgeCheck, CircleDollarSign, Package, ShoppingBag, Users } from 'lucide-react';
+import { Activity, BadgeCheck, CircleDollarSign, Package, ShoppingBag, Users, Wallet } from 'lucide-react';
 import { adminService } from '@/services';
 import { money, shortDate } from '@/lib/format';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -146,30 +146,114 @@ export function AdminOrders() {
   const load = () => adminService.orders({ limit: 200 }).then((r) => setOrders(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
   const change = async (row, status) => { try { await adminService.updateOrder(row.id, { status }); toast.success('Order updated'); load(); } catch (e) { toast.error(e.message); } };
+  const deliver = async (row, status) => { try { await adminService.updateDelivery(row.id, { status }); toast.success('Delivery updated'); load(); } catch (e) { toast.error(e.message); } };
+  const collect = async (row) => { if (!confirm('Confirm cash collected for this COD order?')) return; try { await adminService.updateDelivery(row.id, { paymentCollected: true }); toast.success('Cash collection confirmed'); load(); } catch (e) { toast.error(e.message); } };
   return <DataTable emptyTitle="No orders yet" rows={orders} searchKeys={['orderNumber']} columns={[
     { key: 'orderNumber', label: 'Order', render: (row) => <Link className="font-medium hover:text-accent" href={`/dashboard/buyer/orders/${row.id}`}>{row.orderNumber}</Link> },
     { key: 'date', label: 'Date', render: (row) => shortDate(row.createdAt) },
-    { key: 'items', label: 'Items', render: (row) => row.items.length },
     { key: 'total', label: 'Total', render: (row) => money(row.total) },
     { key: 'paymentStatus', label: 'Payment', render: (row) => <Badge status={row.paymentStatus} /> },
-    { key: 'status', label: 'Status', render: (row) => <Select className="h-8 w-32 text-xs" value={row.status} onChange={(e) => change(row, e.target.value)}><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></Select> },
+    { key: 'delivery', label: 'Delivery', render: (row) => <Select className="h-8 w-28 text-xs" value={row.delivery?.status || 'pending'} onChange={(e) => deliver(row, e.target.value)}><option value="pending">Pending</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></Select> },
+    { key: 'status', label: 'Status', render: (row) => <Select className="h-8 w-32 text-xs" value={row.status} onChange={(e) => change(row, e.target.value)}><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></Select> },
+    { key: 'cod', label: 'COD', render: (row) => row.paymentMethod === 'cod' && !row.delivery?.paymentCollected ? <Button size="sm" variant="outline" onClick={() => collect(row)}>Collect cash</Button> : row.delivery?.paymentCollected ? <Badge tone="success">Collected</Badge> : '—' },
   ]} />;
 }
 
 export function AdminPayments() {
-  const [payments, setPayments] = useState([]);
-  const load = () => adminService.payments().then(setPayments).catch(() => {});
+  const [result, setResult] = useState({ data: [], meta: {} });
+  const load = () => adminService.payments({ limit: 200 }).then(setResult).catch(() => {});
   useEffect(() => { load(); }, []);
-  const refund = async (row) => { if (!confirm('Record a refund for this payment?')) return; try { await adminService.refund(row._id, { note: 'Refunded by admin' }); toast.success('Refund recorded'); load(); } catch (e) { toast.error(e.message); } };
-  return <DataTable emptyTitle="No payments yet" rows={payments} searchKeys={['transactionId']} columns={[
-    { key: 'order', label: 'Order', render: (row) => row.orderId?.orderNumber || '—' },
-    { key: 'gateway', label: 'Gateway', render: (row) => row.gateway },
-    { key: 'transactionId', label: 'Transaction', render: (row) => <span className="font-mono text-xs">{row.transactionId || '—'}</span> },
-    { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
-    { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} /> },
-    { key: 'date', label: 'Date', render: (row) => shortDate(row.createdAt) },
-    { key: 'refund', label: '', render: (row) => row.status === 'paid' ? <Button variant="ghost" size="sm" onClick={() => refund(row)}>Refund</Button> : '—' },
-  ]} />;
+  const refund = async (row) => { if (!confirm('Simulate a refund for this payment? This will reverse seller earnings.')) return; try { await adminService.refund(row.id, { note: 'Refund simulated by admin' }); toast.success('Refund simulated'); load(); } catch (e) { toast.error(e.message); } };
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Portfolio payment mode</p>
+        <p className="mt-1 text-xs">Simulated rows are demo transactions. No gateway or bank account is involved. Refunds and payouts only update this marketplace ledger.</p>
+      </div>
+      <DataTable emptyTitle="No payments yet" rows={result.data} searchKeys={['transactionId']} columns={[
+        { key: 'order', label: 'Order', render: (row) => row.orderId?.orderNumber || '—' },
+        { key: 'gateway', label: 'Gateway', render: (row) => <span className="capitalize">{row.gateway}</span> },
+        { key: 'transactionId', label: 'Transaction', render: (row) => <span className="font-mono text-xs">{row.transactionId || '—'}</span> },
+        { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+        { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} /> },
+        { key: 'mode', label: 'Mode', render: (row) => row.simulated ? <Badge tone="warning">Simulated</Badge> : <Badge tone="neutral">{row.mode}</Badge> },
+        { key: 'date', label: 'Date', render: (row) => shortDate(row.createdAt) },
+        { key: 'refund', label: '', render: (row) => row.status === 'paid' ? <Button variant="ghost" size="sm" onClick={() => refund(row)}>Refund</Button> : '—' },
+      ]} />
+    </div>
+  );
+}
+
+export function AdminFinance() {
+  const [data, setData] = useState(null);
+  const [sellers, setSellers] = useState([]);
+  const [form, setForm] = useState({ sellerId: '', amount: '', note: '' });
+  const load = () => {
+    adminService.finance().then(setData).catch(() => {});
+    adminService.sellers({ limit: 200 }).then((r) => setSellers(r.data)).catch(() => {});
+  };
+  useEffect(() => { load(); }, []);
+  const request = async (event) => {
+    event.preventDefault();
+    try {
+      await adminService.createPayout({ sellerId: form.sellerId, amount: Number(form.amount), note: form.note });
+      toast.success('Payout requested'); setForm({ sellerId: '', amount: '', note: '' }); load();
+    } catch (e) { toast.error(e.message); }
+  };
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Collected" value={money(data?.collected || 0)} icon={CircleDollarSign} accent hint="Paid payments" />
+        <StatCard label="Commission" value={money(data?.commission || 0)} icon={Activity} />
+        <StatCard label="Seller earnings" value={money(data?.sellerEarnings || 0)} icon={Wallet} />
+        <StatCard label="Refunded" value={money(data?.refunded || 0)} icon={BadgeCheck} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Payouts pending" value={money(data?.payouts?.pending || 0)} />
+        <StatCard label="Payouts completed" value={money(data?.payouts?.completed || 0)} />
+        <StatCard label="Payouts cancelled" value={money(data?.payouts?.cancelled || 0)} />
+      </div>
+      <form onSubmit={request} className={`${panelCard} grid max-w-xl gap-3`}>
+        <h2 className="font-semibold">Request a simulated payout</h2>
+        <p className="text-xs text-muted">Creates a pending payout and reserves the amount from the seller&apos;s available balance. Completing it is a separate action.</p>
+        <Select required value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
+          <option value="">Select a seller store</option>
+          {sellers.map((seller) => <option key={seller.id} value={seller.id}>{seller.storeName}</option>)}
+        </Select>
+        <Input required type="number" min="1" step="0.01" placeholder="Amount (৳)" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        <Input placeholder="Note (optional)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        <Button type="submit" size="sm" className="justify-self-start">Request payout</Button>
+      </form>
+    </div>
+  );
+}
+
+export function AdminPayouts() {
+  const [result, setResult] = useState({ data: [], meta: {} });
+  const load = () => adminService.payouts({ limit: 200 }).then(setResult).catch(() => {});
+  useEffect(() => { load(); }, []);
+  const change = async (row, status) => {
+    try { await adminService.updatePayout(row.id, { status }); toast.success(`Payout ${status}`); load(); }
+    catch (e) { toast.error(e.message); }
+  };
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Simulated payouts</p>
+        <p className="mt-1 text-xs">Completing a payout records it in the ledger only. No bank transfer is made.</p>
+      </div>
+      <DataTable emptyTitle="No payouts yet" rows={result.data} columns={[
+        { key: 'reference', label: 'Reference', render: (row) => <span className="font-mono text-xs">{row.reference}</span> },
+        { key: 'store', label: 'Store', render: (row) => row.storeName || '—' },
+        { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+        { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} /> },
+        { key: 'date', label: 'Requested', render: (row) => shortDate(row.createdAt) },
+        { key: 'action', label: 'Action', render: (row) => row.status === 'pending' ? (
+          <div className="flex gap-2"><Button size="sm" onClick={() => change(row, 'completed')}>Complete</Button><Button size="sm" variant="outline" onClick={() => change(row, 'cancelled')}>Cancel</Button></div>
+        ) : '—' },
+      ]} />
+    </div>
+  );
 }
 
 export function AdminCommissions() {

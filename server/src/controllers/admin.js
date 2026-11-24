@@ -8,8 +8,13 @@ import { Review } from '../models/review.js';
 import { Setting } from '../models/setting.js';
 import { ApiError, asyncHandler, ok, pagination, round2 } from '../utils/api.js';
 import { uniqueSlug, escapeText } from '../utils/common.js';
-import { userView, storeView, productView, orderView } from '../utils/serialize.js';
+import { userView, storeView, productView, orderView, paymentView } from '../utils/serialize.js';
 import { notify } from '../services/marketplace.js';
+import { refundPaymentRecord, settleCodPayment } from '../services/payments.js';
+import {
+  createPayout as requestPayout, listPayouts as fetchPayouts, marketplaceFinance,
+  updatePayout as changePayout,
+} from '../services/finance.js';
 import { deleteImages } from '../config/cloudinary.js';
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -164,8 +169,12 @@ export const listOrders = asyncHandler(async (req, res) => {
 export const updateOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found');
+  // Refunds must go through the payment record so finance and order state stay in sync.
+  if (req.body.status === 'refunded') {
+    throw new ApiError(409, 'Use the refund endpoint on the payment record to refund an order');
+  }
   order.status = req.body.status;
-  if (['delivered', 'cancelled', 'refunded'].includes(req.body.status)) {
+  if (['delivered', 'cancelled'].includes(req.body.status)) {
     order.items.forEach((item) => { item.sellerStatus = req.body.status === 'delivered' ? 'delivered' : 'cancelled'; });
   }
   order.timeline.push({ label: `Admin set ${req.body.status}`, at: new Date() });
@@ -173,26 +182,68 @@ export const updateOrder = asyncHandler(async (req, res) => {
   ok(res, orderView(order), 'Order updated');
 });
 
-export const listPayments = asyncHandler(async (_req, res) => {
-  const payments = await Payment.find().populate('orderId', 'orderNumber').sort({ createdAt: -1 }).limit(200).lean();
-  ok(res, payments);
+export const updateDelivery = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (req.body.status) {
+    order.delivery.status = req.body.status;
+    if (req.body.status === 'shipped') order.delivery.shippedAt = new Date();
+    if (req.body.status === 'delivered') order.delivery.deliveredAt = new Date();
+    order.timeline.push({ label: `Delivery ${req.body.status}`, at: new Date() });
+  }
+  if (req.body.note) order.delivery.note = req.body.note;
+  if (req.body.paymentCollected === true) {
+    const settled = await settleCodPayment(order._id, { collectedBy: req.user.id, note: req.body.note });
+    ok(res, orderView(settled.order), 'Cash collection confirmed');
+    return;
+  }
+  await order.save();
+  ok(res, orderView(order), 'Delivery updated');
+});
+
+export const listPayments = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = pagination(req.query);
+  const filter = {};
+  if (['pending', 'paid', 'failed', 'cancelled', 'refunded'].includes(req.query.status)) filter.status = req.query.status;
+  if (['mock', 'cod', 'sslcommerz'].includes(req.query.gateway)) filter.gateway = req.query.gateway;
+  if (req.query.search) filter.transactionId = { $regex: escapeRegex(req.query.search), $options: 'i' };
+  const [items, total] = await Promise.all([
+    Payment.find(filter).populate('orderId', 'orderNumber').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Payment.countDocuments(filter),
+  ]);
+  ok(res, items.map(paymentView), null, 200, { total, page, limit, pages: Math.ceil(total / limit) });
 });
 
 export const refundPayment = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id);
   if (!payment) throw new ApiError(404, 'Payment not found');
-  if (payment.status !== 'paid') throw new ApiError(409, 'Only paid payments can be refunded');
-  payment.status = 'refunded';
-  payment.refund = { status: 'completed', amount: req.body.amount || payment.amount, note: req.body.note, at: new Date() };
-  await payment.save();
-  const order = await Order.findById(payment.orderId);
-  order.paymentStatus = 'refunded';
-  order.status = 'refunded';
-  order.platformRevenue = 0;
-  order.timeline.push({ label: 'Refunded by admin', at: new Date() });
-  await order.save();
-  await notify(order.buyerId, 'Refund completed', order.orderNumber, 'payment');
-  ok(res, payment, 'Refund recorded');
+  const result = await refundPaymentRecord(payment, {
+    note: req.body.note || 'Refund simulated by admin',
+    adminId: req.user.id,
+  });
+  ok(res, paymentView(result.payment), 'Refund simulated');
+});
+
+export const finance = asyncHandler(async (_req, res) => ok(res, await marketplaceFinance()));
+
+export const listPayouts = asyncHandler(async (req, res) => {
+  const result = await fetchPayouts(req.query);
+  ok(res, result.data, null, 200, result.meta);
+});
+
+export const createPayout = asyncHandler(async (req, res) => {
+  const payout = await requestPayout({
+    sellerId: req.body.sellerId,
+    amount: req.body.amount,
+    note: req.body.note,
+    adminId: req.user.id,
+  });
+  ok(res, payout, 'Payout requested (simulation only)', 201);
+});
+
+export const updatePayout = asyncHandler(async (req, res) => {
+  const payout = await changePayout(req.params.id, { status: req.body.status, note: req.body.note, adminId: req.user.id });
+  ok(res, payout, `Payout ${payout.status}`);
 });
 
 export const commissions = asyncHandler(async (_req, res) => {

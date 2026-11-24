@@ -204,6 +204,7 @@ export function SellerOrders() {
   const load = () => sellerService.orders({ limit: 100 }).then((r) => setOrders(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
   const update = async (orderId, itemId, sellerStatus) => { try { await sellerService.updateOrderItem(orderId, itemId, { sellerStatus }); toast.success('Fulfillment updated'); load(); } catch (e) { toast.error(e.message); } };
+  const collect = async (orderId, itemId) => { try { await sellerService.updateOrderItem(orderId, itemId, { sellerStatus: 'delivered', codCollected: true }); toast.success('Cash collection recorded'); load(); } catch (e) { toast.error(e.message); } };
   if (!orders.length) return <EmptyState title="No orders yet" description="Orders containing your products will appear here." />;
   return (
     <div className="grid gap-4">
@@ -216,6 +217,10 @@ export function SellerOrders() {
               <Select className="w-40" value={item.sellerStatus} onChange={(e) => update(order.id, item._id, e.target.value)}>
                 {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => <option key={status} value={status}>{status}</option>)}
               </Select>
+              {order.paymentMethod === 'cod' && !item.codCollected && order.paymentStatus !== 'paid' && (
+                <Button size="sm" variant="outline" onClick={() => collect(order.id, item._id)}>Confirm cash collected</Button>
+              )}
+              {item.codCollected && <Badge tone="success">Cash collected</Badge>}
             </div>
           ))}
         </Card>
@@ -226,15 +231,56 @@ export function SellerOrders() {
 
 export function SellerEarnings() {
   const [data, setData] = useState(null);
-  useEffect(() => { sellerService.earnings({ days: 30 }).then(setData).catch(() => {}); }, []);
+  const [finance, setFinance] = useState(null);
+  useEffect(() => {
+    sellerService.earnings({ days: 30 }).then(setData).catch(() => {});
+    sellerService.finance().then(setFinance).catch(() => {});
+  }, []);
   return (
     <div className="grid gap-5">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Your earnings" value={money(data?.sellerEarning || 0)} icon={Wallet} accent />
         <StatCard label="Commission paid" value={money(data?.commission || 0)} icon={Package} />
         <StatCard label="Paid orders" value={data?.orders || 0} icon={ShoppingBag} />
+        <StatCard label="Available balance" value={money(finance?.finance?.available || 0)} hint="Withdrawable" icon={Wallet} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Pending payout" value={money(finance?.finance?.pending || 0)} />
+        <StatCard label="Total paid out" value={money(finance?.finance?.paidOut || 0)} />
+        <StatCard label="Refunds" value={money(finance?.finance?.refunds || 0)} />
       </div>
       <RevenueChart data={data?.chart || []} label="Earnings, last 30 days" />
+      <p className="text-xs text-muted">Balances are maintained by the server from paid orders and simulated payouts. Admin can request and complete payouts in Portfolio Mode.</p>
+    </div>
+  );
+}
+
+export function SellerPayouts() {
+  const [finance, setFinance] = useState(null);
+  const load = () => sellerService.finance().then(setFinance).catch(() => {});
+  useEffect(() => { load(); }, []);
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Available" value={money(finance?.finance?.available || 0)} icon={Wallet} accent />
+        <StatCard label="Pending" value={money(finance?.finance?.pending || 0)} />
+        <StatCard label="Paid out" value={money(finance?.finance?.paidOut || 0)} />
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Simulation only</p>
+        <p className="mt-1 text-xs">Payouts here are records in the marketplace ledger. No bank transfer or real money movement is performed.</p>
+      </div>
+      <DataTable
+        emptyTitle="No payouts yet"
+        rows={finance?.history || []}
+        columns={[
+          { key: 'reference', label: 'Reference', render: (row) => <span className="font-mono text-xs">{row.reference}</span> },
+          { key: 'date', label: 'Requested', render: (row) => shortDate(row.createdAt) },
+          { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+          { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} /> },
+          { key: 'simulated', label: 'Type', render: (row) => row.simulated ? <Badge tone="warning">Simulated</Badge> : '—' },
+        ]}
+      />
     </div>
   );
 }

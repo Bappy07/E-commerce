@@ -73,7 +73,37 @@ export const cartUpdateSchema = z.object({ quantity: z.coerce.number().int().min
 
 export const orderSchema = z.object({
   addressId: id,
-  paymentMethod: z.enum(['cod', 'sslcommerz']),
+  paymentMethod: z.enum(['cod', 'mock', 'sslcommerz']),
+  note: text(300).optional().default(''),
+});
+
+export const mockInitSchema = z.object({
+  orderId: id,
+  method: z.enum(['card', 'mobile-banking', 'bank-transfer']).optional().default('card'),
+});
+
+// "outcome" only chooses a simulated gateway scenario. The backend maps it to a status.
+export const mockVerifySchema = z.object({
+  token: z.string().min(10),
+  outcome: z.enum(['success', 'failure', 'cancel']),
+});
+
+export const deliverySchema = z.object({
+  status: z.enum(['pending', 'shipped', 'delivered', 'cancelled']).optional(),
+  paymentCollected: z.boolean().optional(),
+  note: text(300).optional().default(''),
+}).refine((data) => data.status !== undefined || data.paymentCollected !== undefined, {
+  message: 'Provide a delivery status or payment collection flag',
+});
+
+export const payoutSchema = z.object({
+  sellerId: id,
+  amount: z.coerce.number().positive(),
+  note: text(300).optional().default(''),
+});
+
+export const payoutStatusSchema = z.object({
+  status: z.enum(['completed', 'cancelled']),
   note: text(300).optional().default(''),
 });
 
@@ -112,7 +142,10 @@ export const adminProductSchema = z.object({
 });
 
 export const adminOrderSchema = z.object({ status: z.enum(['processing', 'shipped', 'delivered', 'cancelled', 'refunded']) });
-export const sellerOrderSchema = z.object({ sellerStatus: z.enum(['processing', 'shipped', 'delivered', 'cancelled']) });
+export const sellerOrderSchema = z.object({
+  sellerStatus: z.enum(['processing', 'shipped', 'delivered', 'cancelled']),
+  codCollected: z.boolean().optional(),
+});
 
 export const inventorySchema = z.object({
   stock: z.coerce.number().int().min(0).optional(),

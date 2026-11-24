@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Banknote, CreditCard, MapPin, Plus } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, MapPin, Plus, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { account, cartService, orderService, paymentService } from '@/services';
 import { useAuth } from '@/hooks/use-auth';
@@ -17,17 +17,23 @@ import { cn } from '@/lib/utils';
 
 const emptyAddress = { label: 'Home', name: '', phone: '', line1: '', line2: '', city: 'Dhaka', district: 'Dhaka', postalCode: '', country: 'Bangladesh', isDefault: true };
 
+const icons = { cod: Banknote, mock: CreditCard, sslcommerz: Landmark };
+const fallbackMethods = [
+  { id: 'cod', label: 'Cash on delivery', description: 'Pay cash when your order arrives', available: true, simulated: false },
+  { id: 'mock', label: 'Simulated online payment', description: 'Demo checkout — no real money is charged', available: true, simulated: true },
+];
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { cart, refresh } = useCart();
   const [addresses, setAddresses] = useState([]);
   const [selected, setSelected] = useState('');
-  const [method, setMethod] = useState('cod');
+  const [method, setMethod] = useState('mock');
+  const [methods, setMethods] = useState(fallbackMethods);
   const [form, setForm] = useState(emptyAddress);
   const [showForm, setShowForm] = useState(false);
   const [placing, setPlacing] = useState(false);
-  const [totals, setTotals] = useState({ shipping: 60, total: 0 });
 
   useEffect(() => {
     if (authLoading) return;
@@ -38,9 +44,12 @@ export default function CheckoutPage() {
       setSelected(defaultAddress?._id || '');
       setShowForm(items.length === 0);
     }).catch(() => {});
+    paymentService.methods().then((items) => {
+      const available = items.filter((item) => item.available);
+      setMethods(available);
+      if (!available.some((item) => item.id === method)) setMethod(available[0]?.id || 'cod');
+    }).catch(() => {});
   }, [user, authLoading]);
-
-  useEffect(() => { setTotals({ shipping: cart.subtotal >= 5000 ? 0 : 60, total: cart.subtotal + (cart.subtotal >= 5000 ? 0 : 60) }); }, [cart.subtotal]);
 
   const saveAddress = async (event) => {
     event.preventDefault();
@@ -58,14 +67,20 @@ export default function CheckoutPage() {
     setPlacing(true);
     try {
       const order = await orderService.create({ addressId: selected, paymentMethod: method });
-      if (method === 'sslcommerz') {
-        const { gatewayUrl } = await paymentService.init(order.id);
-        window.location.href = gatewayUrl;
-      } else {
+      if (method === 'mock') {
+        const session = await paymentService.initMock({ orderId: order.id, method: 'card' });
         await refresh();
-        toast.success('Order placed successfully');
-        router.push(`/dashboard/buyer/orders/${order.id}`);
+        router.push(session.checkoutUrl);
+        return;
       }
+      if (method === 'sslcommerz') {
+        const { gatewayUrl } = await paymentService.initSsl(order.id);
+        window.location.href = gatewayUrl;
+        return;
+      }
+      await refresh();
+      toast.success('Order placed — pay cash on delivery');
+      router.push(`/dashboard/buyer/orders/${order.id}`);
     } catch (error) {
       toast.error(error.message);
       setPlacing(false);
@@ -107,16 +122,22 @@ export default function CheckoutPage() {
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 font-semibold">Payment method</h2>
+            <h2 className="mb-1 font-semibold">Payment method</h2>
+            <p className="mb-4 flex items-center gap-1.5 text-xs text-muted"><ShieldCheck className="h-3.5 w-3.5" /> No paid gateway account needed. All online payments here are simulated.</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button onClick={() => setMethod('cod')} className={cn('flex items-start gap-3 rounded-lg border p-4 text-left', method === 'cod' ? 'border-accent bg-orange-50/50' : 'border-border')}>
-                <Banknote className="mt-0.5 h-5 w-5 text-accent" />
-                <span><span className="block text-sm font-medium">Cash on delivery</span><span className="text-xs text-muted">Pay when your order arrives</span></span>
-              </button>
-              <button onClick={() => setMethod('sslcommerz')} className={cn('flex items-start gap-3 rounded-lg border p-4 text-left', method === 'sslcommerz' ? 'border-accent bg-orange-50/50' : 'border-border')}>
-                <CreditCard className="mt-0.5 h-5 w-5 text-accent" />
-                <span><span className="block text-sm font-medium">Online payment</span><span className="text-xs text-muted">Card, mobile banking via SSLCommerz</span></span>
-              </button>
+              {methods.map((item) => {
+                const Icon = icons[item.id] || CreditCard;
+                return (
+                  <button key={item.id} onClick={() => setMethod(item.id)} className={cn('flex items-start gap-3 rounded-lg border p-4 text-left', method === item.id ? 'border-accent bg-orange-50/50' : 'border-border')}>
+                    <Icon className="mt-0.5 h-5 w-5 text-accent" />
+                    <span>
+                      <span className="block text-sm font-medium">{item.label}</span>
+                      <span className="text-xs text-muted">{item.description}</span>
+                      {item.simulated && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-600">Simulated · no real charge</span>}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -135,11 +156,10 @@ export default function CheckoutPage() {
             ))}
           </div>
           <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
-            <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>{money(cart.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-muted">Delivery</span><span>{totals.shipping ? money(totals.shipping) : 'Free'}</span></div>
-            <div className="flex justify-between border-t border-border pt-3 text-base font-semibold"><span>Total</span><span>{money(totals.total)}</span></div>
+            <div className="flex justify-between"><span className="text-muted">Items subtotal</span><span>{money(cart.subtotal)}</span></div>
+            <p className="text-xs text-muted">Delivery and final total are confirmed by the server when the order is placed.</p>
           </div>
-          <Button size="lg" className="mt-6 w-full" onClick={placeOrder} disabled={placing || !cart.items.length}>{placing ? 'Placing order...' : 'Place order'}</Button>
+          <Button size="lg" className="mt-6 w-full" onClick={placeOrder} disabled={placing || !cart.items.length || !method}>{placing ? 'Placing order...' : 'Place order'}</Button>
           <Link href="/cart" className="mt-4 block text-center text-xs text-muted hover:text-accent">Back to cart</Link>
         </aside>
       </div>

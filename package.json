@@ -12,6 +12,7 @@
     "placeholders": "npm --prefix server run placeholders",
     "smoke": "npm --prefix server run smoke",
     "workflow": "npm --prefix server run workflow",
+    "verify:payments": "npm --prefix server run verify:payments",
     "verify:production": "npm --prefix server run verify:production",
     "test": "npm --prefix server test",
     "start": "concurrently -n api,web -c orange,cyan \"npm --prefix server start\" \"npm --prefix client start\""

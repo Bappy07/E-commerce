@@ -21,6 +21,14 @@ const sellerProfileSchema = new mongoose.Schema({
     note: String,
   },
   stats: { totalSales: { type: Number, default: 0 }, totalOrders: { type: Number, default: 0 }, rating: { type: Number, default: 0 } },
+  // Server-owned ledger. Never written from client input.
+  finance: {
+    earnings: { type: Number, default: 0 },
+    available: { type: Number, default: 0 },
+    pending: { type: Number, default: 0 },
+    paidOut: { type: Number, default: 0 },
+    refunds: { type: Number, default: 0 },
+  },
 }, { timestamps: true });
 
 export const SellerProfile = mongoose.model('SellerProfile', sellerProfileSchema);

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Bell, Heart, MapPin, Package, ShoppingBag } from 'lucide-react';
+import { Bell, CreditCard, Heart, MapPin, Package, ShoppingBag, Wallet } from 'lucide-react';
 import { account, orderService, paymentService } from '@/services';
 import { money, shortDate } from '@/lib/format';
 import { useAuth } from '@/hooks/use-auth';
@@ -90,8 +90,15 @@ export function BuyerOrderDetail({ id }) {
     catch (e) { toast.error(e.message); }
   };
   const pay = async () => {
-    try { const { gatewayUrl } = await paymentService.init(id); window.location.href = gatewayUrl; }
-    catch (e) { toast.error(e.message); }
+    try {
+      if (order.paymentMethod === 'mock') {
+        const session = await paymentService.initMock({ orderId: id, method: 'card' });
+        router.push(session.checkoutUrl);
+      } else {
+        const { gatewayUrl } = await paymentService.initSsl(id);
+        window.location.href = gatewayUrl;
+      }
+    } catch (e) { toast.error(e.message); }
   };
 
   if (error) return <EmptyState title="Order unavailable" description={error} href="/dashboard/buyer/orders" />;
@@ -106,11 +113,17 @@ export function BuyerOrderDetail({ id }) {
         </div>
         <div className="mt-5 grid gap-3 border-t border-border pt-5 sm:grid-cols-2">
           <div><p className="text-xs text-muted">Delivery address</p><p className="mt-1 text-sm">{order.address.name} · {order.address.phone}</p><p className="text-sm text-muted">{order.address.line1}, {order.address.city}</p></div>
-          <div><p className="text-xs text-muted">Payment</p><p className="mt-1 text-sm capitalize">{order.paymentMethod === 'cod' ? 'Cash on delivery' : 'SSLCommerz'}</p>{payment?.transactionId && <p className="text-xs text-muted">{payment.transactionId}</p>}</div>
+          <div>
+            <p className="text-xs text-muted">Payment</p>
+            <p className="mt-1 text-sm capitalize">{order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod === 'mock' ? 'Simulated online payment' : 'SSLCommerz'}</p>
+            {payment?.transactionId && <p className="text-xs text-muted">{payment.transactionId}</p>}
+            {payment?.simulated && <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600">Simulated · no real money</p>}
+            {order.paymentMethod === 'cod' && <p className="mt-1 text-xs text-amber-700">{order.delivery?.paymentCollected ? `Cash collected ${shortDate(order.delivery.collectedAt)}` : 'Cash not collected yet'}</p>}
+          </div>
         </div>
-        {['pending', 'processing'].includes(order.status) && order.paymentStatus !== 'paid' && (
+        {['pending', 'processing'].includes(order.status) && ['pending', 'failed', 'cancelled'].includes(order.paymentStatus) && (
           <div className="mt-5 flex gap-3 border-t border-border pt-5">
-            {order.paymentMethod === 'sslcommerz' && <Button onClick={pay}>Complete payment</Button>}
+            {order.paymentMethod !== 'cod' && <Button onClick={pay}>Complete payment</Button>}
             <Button variant="outline" onClick={cancel}>Cancel order</Button>
           </div>
         )}
@@ -216,6 +229,34 @@ export function BuyerSellApplication() {
       <div><label className="mb-1.5 block text-sm font-medium">About your store</label><Textarea name="message" required minLength={10} /></div>
       <Button type="submit">Submit application</Button>
     </form>
+  );
+}
+
+export function BuyerPayments() {
+  const [result, setResult] = useState({ data: [], meta: {} });
+  const load = () => paymentService.history({ limit: 100 }).then(setResult).catch(() => {});
+  useEffect(() => { load(); }, []);
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Transparent payment history</p>
+        <p className="mt-1 text-xs">Rows labelled “simulated” were created in this portfolio demo. No real funds were transferred.</p>
+      </div>
+      <DataTable
+        emptyTitle="No payments yet"
+        rows={result.data}
+        searchKeys={['transactionId']}
+        columns={[
+          { key: 'date', label: 'Date', render: (row) => shortDate(row.createdAt) },
+          { key: 'order', label: 'Order', render: (row) => row.orderId?.orderNumber || '—' },
+          { key: 'gateway', label: 'Method', render: (row) => <span className="capitalize">{row.gateway === 'mock' ? 'Simulated' : row.gateway === 'cod' ? 'Cash on delivery' : row.gateway}</span> },
+          { key: 'transactionId', label: 'Transaction', render: (row) => <span className="font-mono text-xs">{row.transactionId || '—'}</span> },
+          { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+          { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} /> },
+          { key: 'mode', label: 'Type', render: (row) => row.simulated ? <Badge tone="warning">Simulated</Badge> : <Badge tone="neutral">{row.mode}</Badge> },
+        ]}
+      />
+    </div>
   );
 }
 
