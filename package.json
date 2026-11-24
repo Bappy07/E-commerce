@@ -1,0 +1,19 @@
+{
+  "name": "marketly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MARKETLY — premium multi-vendor marketplace",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n api,web -c orange,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "seed": "npm --prefix server run seed",
+    "smoke": "npm --prefix server run smoke",
+    "workflow": "npm --prefix server run workflow",
+    "test": "npm --prefix server test",
+    "start": "concurrently -n api,web -c orange,cyan \"npm --prefix server start\" \"npm --prefix client start\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
